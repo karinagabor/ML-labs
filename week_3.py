@@ -120,7 +120,7 @@ def decision_node_split ( X, y, cls=None, weights=None, min_size=3 ):
     if len(y) < min_size * 2:
         return None, None, None, None
     
-    if cls in None: cls = utils.vote(y)
+    if cls is None: cls = utils.vote(y)
 
     if weights is None: weights = np.ones(len(y))/len(y)
 
@@ -134,7 +134,7 @@ def decision_node_split ( X, y, cls=None, weights=None, min_size=3 ):
     for ft in range(X.shape[-1]):
         for thresh in X[:, ft]:
             set1 = X[:,ft] >= thresh
-            set0 = not set1
+            set0 = ~set1
 
             if (np.sum(set0) < min_size) or (np.sum(set1) < min_size):
                 continue
@@ -201,7 +201,7 @@ def decision_tree_train ( X, y, cls=None, weights=None,
             'above' : a nested tree for when feature >= thresh (decision)
     """
     # TODO: implement this
-    if cls in None: cls = utils.vote(y)
+    if cls is None: cls = utils.vote(y)
 
     if depth == max_depth:
         return { 'kind' : 'leaf', 'class' : cls }
