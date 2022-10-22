@@ -258,7 +258,8 @@ def random_forest_train ( X, y, k, rng, min_size=3, max_depth=10 ):
             samples, must be same length as number of rows in X
         k: the number of trees in the forest
         rng: an instance of numpy.random.Generator
-            from which to draw random numbers        min_size: don't create child nodes smaller than this
+            from which to draw random numbers        
+        min_size: don't create child nodes smaller than this
         max_depth: maximum tree depth
     
     # Returns:
@@ -266,7 +267,15 @@ def random_forest_train ( X, y, k, rng, min_size=3, max_depth=10 ):
     """
     
     # TODO: implement this
-    return None
+    forest = []
+    
+    for ii in range(k):
+        boot_ix = rng.choice(X.shape[0], X.shape[0])
+        X_i = X[boot_ix,:]
+        y_i = y[boot_ix]
+        forest.append(decision_tree_train ( X_i, y_i, min_size=min_size, max_depth=max_depth ))
+    
+    return forest
     
 
 def random_forest_predict ( forest, X ):
@@ -283,7 +292,8 @@ def random_forest_predict ( forest, X ):
         y: the predicted labels
     """
     # TODO: implement this
-    return None
+    preds = np.array([ decision_tree_predict( tree, X ) for tree in forest ])
+    return np.array([ utils.vote(preds[:,ii]) for ii in range(preds.shape[1])])
 
 
 # -- Question 4 --
@@ -310,7 +320,26 @@ def adaboost_train ( X, y, k, min_size=1, max_depth=1, epsilon=1e-8 ):
             given each of the decision tree predictions
     """
     # TODO: implement this
-    return None, None
+    weights = np.ones(X.shape[0])/X.shape[0]
+    alphas = []
+    trees = []
+    
+    for ii in range(k):
+        trees.append(decision_tree_train(X, y, weights=weights, min_size=min_size, max_depth=max_depth))
+        pred_y = decision_tree_predict(trees[-1], X)
+        err = np.dot(weights, pred_y != y)
+        
+        # bail if we're classifying perfectly
+        if err < epsilon:
+            alphas.append(1)
+            break
+        
+        alphas.append(np.log((1 - err)/err))
+        
+        weights = weights * np.exp(alphas[-1] * (pred_y != y))
+        weights = weights / np.sum(weights)
+    
+    return trees, np.array(alphas)
 
 
 def adaboost_predict ( trees, alphas, X ):
@@ -327,8 +356,10 @@ def adaboost_predict ( trees, alphas, X ):
     # Returns
         y: the predicted labels
     """
-    # TODO: implement this
-    return None
+    preds = np.array([ decision_tree_predict( tree, X ) for tree in trees ]).T * 2 - 1
+    weighted = preds @ alphas
+    
+    return (weighted >= 0).astype(int)
     
 
 #### TEST DRIVER
