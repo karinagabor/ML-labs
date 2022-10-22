@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env pyth
 # -*- coding: utf-8 -*-
 
 """
@@ -54,7 +54,8 @@ def ridge_closed ( X, y, l2=0 ):
     assert(X.shape[0]==len(y))
     
     # TODO: implement this
-    return None
+    w_star = np.linalg.inv(X.T @ X + l2 * np.identity(X.shape[1])) @ X.T @ y
+    return w_star
 
 
 # -- Question 2 --
@@ -79,7 +80,13 @@ def monomial_projection_1d ( X, degree ):
     assert(X.shape[1]==1)
 
     # TODO: implement this
-    return None
+    Xm = np.zeros((X.shape[0], degree+1))
+    Xm[:, 0] = 1
+    Xm[:, 1] = X[:, 0]
+    for i in range(2, degree+1):
+        Xm[:, i] = X[:, 0] ** i
+
+    return Xm
 
 
 def generate_noisy_poly_1d ( num_samples, weights, sigma, limits, rng ):
@@ -108,7 +115,8 @@ def generate_noisy_poly_1d ( num_samples, weights, sigma, limits, rng ):
         y: a vector of num_samples output values
     """
     # TODO: implement this
-    return None, None
+    return utils.random_sample(lambda x: utils.affine(monomial_projection_1d (x, len(weights)-1), weights), 
+                                1, num_samples, limits, rng, sigma)
 
     
 def fit_poly_1d ( X, y, degree, l2=0 ):
@@ -131,8 +139,8 @@ def fit_poly_1d ( X, y, degree, l2=0 ):
     assert(X.shape[0]==len(y))
 
     # TODO: implement this
-    return None
-
+    Xm = monomial_projection_1d ( X, degree )
+    return ridge_closed( Xm, y, l2 )
 
 
 # -- Question 3 --
@@ -168,10 +176,46 @@ def gradient_descent ( z, loss_func, grad_func, lr=0.01,
         losses: a list of the losses at each iteration
     """
     # TODO: implement this
-    return None, None
+    iter = 0
+    z_new = z
+
+    loss_dif = np.inf
+    z_dif = np.inf
+
+    zs = [z]
+    losses = [loss_func(z)]
+
+    while loss_dif > loss_stop and z_dif > z_stop and iter <= max_iter:
+        loss_before = loss_func(z_new)
+        z_before = z_new
+
+        z_new = z_new - lr * grad_func(z_new) 
+        zs.append(z_new)
+        loss_new = loss_func(z_new)
+        losses.append(loss_new)
+
+        loss_dif = np.absolute(loss_new - loss_before)
+        z_dif = np.linalg.norm(z_new - z_before)
+        iter += 1
+    
+    return zs, losses
 
 
 # -- Question 4 --
+
+def sigmoid(z):
+    return 1 / (1 + np.exp(-z))
+
+def logistic_foreward(X, w):
+    return sigmoid(utils.affine(X, w))
+
+def logistic_loss(X, y, w, eps=1e-10):
+    g = logistic_foreward(X, w)
+    return np.dot(-y, np.log(g + eps)) - np.dot((1 - y), np.log(1 - (g + eps)))/ len(y)
+
+def logistic_grad(X, y, w):
+    g = logistic_foreward(X, w)
+    return X.T @ (g - y)
 
 def logistic_regression ( X, y, w0=None, lr=0.05,
                           loss_stop=1e-4, weight_stop=1e-4, max_iter=100 ):
@@ -203,7 +247,11 @@ def logistic_regression ( X, y, w0=None, lr=0.05,
     assert(X.shape[0]==len(y))
     
     # TODO: implement this
-    return None, None
+    if w0 is None: w0 = np.zeros(X.shape[-1])
+
+    return gradient_descent(w0, loss_func = lambda z: logistic_loss(X, y, z), 
+                            grad_func = lambda z: logistic_grad(X, y, z), lr = lr,
+                            loss_stop=loss_stop, z_stop=weight_stop, max_iter=max_iter )
 
 
 #### plotting utilities

@@ -14,18 +14,19 @@ A 4-panel figure, `week_3.pdf`, will be generated so you can check it's doing wh
 want. You should not need to edit the driver code, though you can if you wish.
 """
 
-import sys, os, os.path
 import argparse
+import os
+import os.path
 import pprint
+import sys
 
-import numpy as np
-import numpy.random
 import matplotlib
 import matplotlib.pyplot as plt
+import numpy as np
+import numpy.random
 import pandas as pd
 
 import utils
-
 
 #### ADD YOUR CODE BELOW
 
@@ -51,9 +52,16 @@ def nearest_neighbours_predict ( train_X, train_y, test_X, neighbours=1 ):
     assert(train_X.shape[0] == train_y.shape[0])
     assert(train_X.shape[1] == test_X.shape[1])
 
-    # TODO: implement the k-nearest neighbours algorithm    
-    return None
-    
+    # TODO: implement the k-nearest neighbours algorithm 
+    test_y = np.zeros(test_X.shape[0])
+
+    for i in range(test_X.shape[0]):
+        dist = [(np.linalg.norm(test_X[i] - train_X[j]), train_y[j]) for j in range(train_X.shape[0])]
+        dist.sort(key=lambda z: z[0])
+
+        test_y[i] = utils.vote([z[1] for z in dist[:neighbours]])
+    return test_y
+
 
 # -- Question 2 --
 
@@ -73,7 +81,8 @@ def misclassification ( y, cls, weights=None ):
     """
     
     # TODO: implement weighted misclassification metric
-    return 1
+    if weights is None: weights = 1 / len(y)
+    return np.sum(weights * (y != cls))
 
 
 def decision_node_split ( X, y, cls=None, weights=None, min_size=3 ):
@@ -108,7 +117,58 @@ def decision_node_split ( X, y, cls=None, weights=None, min_size=3 ):
     assert(X.shape[0] == len(y))
     
     # TODO: implement this
-    return None, None, None, None
+    if len(y) < min_size * 2:
+        return None, None, None, None
+    
+    if cls in None: cls = utils.vote(y)
+
+    if weights is None: weights = np.ones(len(y))/len(y)
+
+    g = misclassification(y, cls=cls, weights=weights)
+    if g == 0: return None, None, None, None
+
+    best_ft, best_thresh = None, None
+    best_c0, best_c1 = None, None
+    best_improvement = 0
+
+    for ft in range(X.shape[-1]):
+        for thresh in X[:, ft]:
+            set1 = X[:,ft] >= thresh
+            set0 = not set1
+
+            if (np.sum(set0) < min_size) or (np.sum(set1) < min_size):
+                continue
+
+            y0 = y[set0]
+            y1 = y[set1]
+
+            w0 = weights[set0]
+            w1 = weights[set1]
+
+            cc0 = np.unique(y0)
+            cc1 = np.unique(y1)
+
+            gg0 = [misclassification(y0, cls=cc, weights=w0) for cc in cc0]
+            gg1 = [misclassification(y1, cls=cc, weights=w1) for cc in cc1]
+
+            c0 = cc0[np.argmin(gg0)]
+            c1 = cc1[np.argmin(gg1)]
+
+            g0 = np.min(gg0)
+            g1 = np.min(gg1)
+
+            improvement = g - (g0 + g1)
+
+            if improvement > best_improvement:
+                best_ft = ft
+                best_thresh = thresh
+                best_improvement = improvement
+                best_c0 = c0
+                best_c1 = c1
+    if best_ft is None:
+        return None, None, None, None
+    
+    return best_ft, best_thresh, best_c0, best_c1
 
 
 def decision_tree_train ( X, y, cls=None, weights=None,
