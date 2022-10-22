@@ -201,8 +201,33 @@ def decision_tree_train ( X, y, cls=None, weights=None,
             'above' : a nested tree for when feature >= thresh (decision)
     """
     # TODO: implement this
-    return None
+    if cls in None: cls = utils.vote(y)
+
+    if depth == max_depth:
+        return { 'kind' : 'leaf', 'class' : cls }
+
+    feat, thresh, cls0, cls1 = decision_node_split ( X, y, cls=cls, weights=weights, min_size=min_size )
+
+    if feat is None:
+        return { 'kind' : 'leaf', 'class' : cls }
+
+    set1 = X[:,feat] >= thresh
+    set0 = ~set1
+
+    return { 'kind' : 'decision',
+             'feature' : feat,
+             'thresh' : thresh,
+             'above' : decision_tree_train(X[set1,:], y[set1], cls1, None if weights is None else weights[set1], min_size, depth+1, max_depth),
+             'below' : decision_tree_train(X[set0,:], y[set0], cls0, None if weights is None else weights[set0], min_size, depth+1, max_depth) }
     
+
+def decision_tree_predict1 ( tree, x ):
+    while True:
+        if tree['kind'] == 'leaf':
+            return tree['class']
+        
+        tree = tree['above'] if x[tree['feature']] >= tree['thresh'] else tree['below']
+
 
 def decision_tree_predict ( tree, X ):
     """
@@ -217,7 +242,7 @@ def decision_tree_predict ( tree, X ):
         y: the predicted labels
     """
     # TODO: implement this
-    return None
+    return np.array([ decision_tree_predict1( tree, X[i,:] ) for i in range(X.shape[0]) ])
 
 
 # -- Question 3 --
